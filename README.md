@@ -44,6 +44,30 @@ docker build -t reclip . && docker run -p 8899:8899 reclip
 4. Select quality/resolution if available
 5. Click **Download** on individual videos, or **Download All**
 
+## XerahS Integration
+
+This fork can hand completed downloads to the local `xerahs` CLI without failing the ReClip download if the upload step has a problem.
+
+Environment variables:
+
+```bash
+XERAHS_ENABLED=true                 # opt in to post-download XerahS work
+XERAHS_BIN=xerahs                   # CLI path or command name
+XERAHS_UPLOAD_ENABLED=true          # run: xerahs upload <file> --json
+XERAHS_COPY_TO_WATCH=false          # copy to the ReClip watch folder before upload
+XERAHS_RECLIP_WATCH_FOLDER=/path    # optional; otherwise asks: xerahs reclip status --json
+XERAHS_TIMEOUT_SECONDS=300          # upload timeout
+```
+
+Recommended local setup:
+
+```bash
+xerahs reclip use-default-watch-folder
+XERAHS_ENABLED=true XERAHS_UPLOAD_ENABLED=true ./reclip.sh
+```
+
+`/api/status/<job_id>` includes an optional `xerahs` object with upload URL, copy path, or error metadata. The browser UI shows the upload URL or a soft XerahS error next to the completed download.
+
 ## Supported Sites
 
 Anything [yt-dlp supports](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md), including:
