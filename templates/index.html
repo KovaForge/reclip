@@ -269,6 +269,7 @@
     .card-status.downloading { color: var(--accent); }
     .card-status.done { color: var(--success); }
     .card-status.error { color: var(--error); }
+    .card-status.xerahs { word-break: break-all; }
 
     .q-chip {
       padding: 4px 10px;
@@ -570,8 +571,9 @@
       } else if (c.status === 'downloading') {
         actionHtml = `<span class="card-status downloading"><span class="spin"></span> Downloading...</span>`;
       } else if (c.status === 'done') {
+        const xerahsHtml = renderXerahsStatus(c.xerahs);
         actionHtml = `<button class="card-dl-btn done" onclick="saveCard(${idx})">Save</button>
-          <span class="card-status done">${esc(c.filename || '')}</span>`;
+          <span class="card-status done">${esc(c.filename || '')}</span>${xerahsHtml}`;
       } else if (c.status === 'error') {
         actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Retry</button>
           <span class="card-status error">${esc(friendlyError(c.error || 'Download failed'))}</span>`;
@@ -585,6 +587,14 @@
           <div class="card-actions">${actionHtml}</div>
         </div>
       `;
+    }
+
+    function renderXerahsStatus(xerahs) {
+      if (!xerahs || !xerahs.enabled) return '';
+      if (xerahs.url) return ` <span class="card-status done xerahs">${esc(xerahs.url)}</span>`;
+      if (xerahs.error) return ` <span class="card-status error xerahs">XerahS: ${esc(friendlyError(xerahs.error))}</span>`;
+      if (xerahs.copied_path) return ` <span class="card-status done xerahs">XerahS copied</span>`;
+      return '';
     }
 
     function renderDownloadAll() {
@@ -646,6 +656,7 @@
             clearInterval(iv);
             c.status = 'done';
             c.filename = data.filename;
+            c.xerahs = data.xerahs;
             renderCard(idx);
             saveCard(idx);
           } else if (data.status === 'error') {
