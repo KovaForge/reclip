@@ -9,7 +9,7 @@ This fork is deployed locally on Michael's iMac as a per-user `launchd` service.
 - LaunchAgent: `/Users/mike/Library/LaunchAgents/ai.kovaforge.reclip.plist`
 - Bind address: `127.0.0.1:8899`
 - Local URL: <http://127.0.0.1:8899>
-- XerahS integration: opt-in via LaunchAgent environment variables
+- XerahS integration: enabled via LaunchAgent environment variables
 - Logs:
   - `logs/reclip.out.log`
   - `logs/reclip.err.log`
@@ -41,7 +41,7 @@ xerahs reclip use-default-watch-folder
 xerahs reclip status
 ```
 
-The service can then upload completed downloads through `xerahs upload <file> --json`. If `XERAHS_COPY_TO_WATCH=true`, ReClip copies the completed file to the configured ReClip watch folder first. Upload or copy failures are recorded in job metadata and do not turn the ReClip download into a failed job.
+The live service uploads completed downloads through `xerahs upload <file> --json` and copies them into the configured ReClip watch folder first. Upload or copy failures are recorded in job metadata and do not turn the ReClip download into a failed job.
 
 ## Recreate service
 
@@ -66,11 +66,13 @@ cat > ~/Library/LaunchAgents/ai.kovaforge.reclip.plist <<'PLIST'
   <dict>
     <key>HOST</key><string>127.0.0.1</string>
     <key>PORT</key><string>8899</string>
-    <key>PATH</key><string>/Users/mike/Projects/KovaForge/reclip/venv/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>PATH</key><string>/Users/mike/Projects/KovaForge/reclip/venv/bin:/Users/mike/.local/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     <key>XERAHS_ENABLED</key><string>true</string>
-    <key>XERAHS_BIN</key><string>xerahs</string>
+    <key>XERAHS_BIN</key><string>/Users/mike/.local/bin/xerahs</string>
     <key>XERAHS_UPLOAD_ENABLED</key><string>true</string>
-    <key>XERAHS_COPY_TO_WATCH</key><string>false</string>
+    <key>XERAHS_COPY_TO_WATCH</key><string>true</string>
+    <key>XERAHS_RECLIP_WATCH_FOLDER</key><string>/Users/mike/Library/CloudStorage/OneDrive-Personal/Videos/ReClip</string>
+    <key>XERAHS_TIMEOUT_SECONDS</key><string>300</string>
   </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
