@@ -17,7 +17,8 @@ https://github.com/user-attachments/assets/419d3e50-c933-444b-8cab-a9724986ba05
 - Bulk downloads — paste multiple URLs at once
 - Automatic URL deduplication
 - Clean, responsive UI — no frameworks, no build step
-- Single Python file backend (~150 lines)
+- Optional DocControl naming and XerahS hosted URL handoff
+- Single Python file backend
 
 ## Quick Start
 
@@ -68,6 +69,26 @@ XERAHS_ENABLED=true XERAHS_UPLOAD_ENABLED=true ./reclip.sh
 
 `/api/status/<job_id>` includes an optional `xerahs` object with upload URL, copy path, or error metadata. The browser UI shows the upload URL or a soft XerahS error next to the completed download.
 
+## DocControl Integration
+
+ReClip can ask DocControl to preview and allocate the final controlled filename before handing the file to XerahS. The allocated filename becomes the local download name, the OneDrive watch-folder copy name, and the XerahS upload name.
+
+Environment variables:
+
+```bash
+DOCCONTROL_ENABLED=true
+DOCCONTROL_REQUIRED=true
+DOCCONTROL_REPO=/Users/mike/Projects/KovaForge/DocControl
+DOCCONTROL_BIN=/Users/mike/Projects/KovaForge/DocControl/tools/doccontrol/doccontrol.py
+DOCCONTROL_CONFIG=/Users/mike/.config/doccontrol/config.json
+DOCCONTROL_PROJECT=Family
+DOCCONTROL_LEVEL1=MIC
+DOCCONTROL_LEVEL2=ENT
+DOCCONTROL_LEVEL3=VIS
+```
+
+The browser UI also exposes Project, Level 1, Level 2, Level 3, and free-text fields. When those fields are set, ReClip previews the next DocControl filename before download and allocates only after the media download succeeds.
+
 ## Supported Sites
 
 Anything [yt-dlp supports](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md), including:
@@ -76,7 +97,7 @@ YouTube, TikTok, Instagram, Twitter/X, Reddit, Facebook, Vimeo, Twitch, Dailymot
 
 ## Stack
 
-- **Backend:** Python + Flask (~150 lines)
+- **Backend:** Python + Flask
 - **Frontend:** Vanilla HTML/CSS/JS (single file, no build step)
 - **Download engine:** [yt-dlp](https://github.com/yt-dlp/yt-dlp) + [ffmpeg](https://ffmpeg.org/)
 - **Dependencies:** 2 (Flask, yt-dlp)

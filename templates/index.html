@@ -94,6 +94,47 @@
       letter-spacing: 0.02em;
     }
 
+    .doccontrol {
+      border: 1.5px solid var(--card-border);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.58);
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+    .doccontrol-row {
+      display: grid;
+      grid-template-columns: 1.2fr repeat(3, 0.7fr);
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .doccontrol input {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1.5px solid var(--card-border);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--fg);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      outline: none;
+      text-transform: uppercase;
+    }
+    .doccontrol input#dcFreeText {
+      text-transform: none;
+    }
+    .doccontrol input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(232, 93, 42, 0.08);
+    }
+    .doccontrol-status {
+      font-size: 0.68rem;
+      color: var(--muted);
+      min-height: 1rem;
+      word-break: break-word;
+    }
+    .doccontrol-status.ready { color: var(--success); }
+    .doccontrol-status.error { color: var(--error); }
+
     .controls {
       display: flex;
       gap: 10px;
@@ -378,6 +419,7 @@
       .card-title { white-space: normal; }
       .controls { flex-wrap: wrap; }
       .fetch-btn { width: 100%; }
+      .doccontrol-row { grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
@@ -390,6 +432,17 @@
 
     <textarea id="urls" placeholder="Paste one or more URLs..." rows="2"></textarea>
     <p class="hint">Multiple links? Separate with spaces, commas, or newlines.</p>
+
+    <div class="doccontrol">
+      <div class="doccontrol-row">
+        <input id="dcProject" placeholder="Project" autocomplete="off">
+        <input id="dcLevel1" placeholder="Level 1" autocomplete="off" maxlength="12">
+        <input id="dcLevel2" placeholder="Level 2" autocomplete="off" maxlength="12">
+        <input id="dcLevel3" placeholder="Level 3" autocomplete="off" maxlength="12">
+      </div>
+      <input id="dcFreeText" placeholder="DocControl free text, defaults to video title" autocomplete="off">
+      <div id="dcStatus" class="doccontrol-status"></div>
+    </div>
 
     <div class="controls">
       <div class="pill-group">
@@ -411,11 +464,89 @@
   <script>
     let currentFormat = 'video';
     let cardData = [];
+    const dcFields = ['dcProject', 'dcLevel1', 'dcLevel2', 'dcLevel3', 'dcFreeText'];
+
+    async function loadDocControlFields() {
+      let defaults = {};
+      try {
+        const res = await fetch('/api/doccontrol/defaults');
+        defaults = await res.json();
+      } catch {
+        defaults = {};
+      }
+      const defaultById = {
+        dcProject: defaults.project || '',
+        dcLevel1: defaults.level1 || '',
+        dcLevel2: defaults.level2 || '',
+        dcLevel3: defaults.level3 || '',
+        dcFreeText: '',
+      };
+      dcFields.forEach(id => {
+        const el = document.getElementById(id);
+        el.value = localStorage.getItem(id) || defaultById[id] || '';
+        el.addEventListener('input', () => {
+          localStorage.setItem(id, el.value.trim());
+          scheduleDocControlPreview();
+        });
+      });
+    }
+
+    function collectDocControl(title = '') {
+      const project = document.getElementById('dcProject').value.trim();
+      const level1 = document.getElementById('dcLevel1').value.trim().toUpperCase();
+      const level2 = document.getElementById('dcLevel2').value.trim().toUpperCase();
+      const level3 = document.getElementById('dcLevel3').value.trim().toUpperCase();
+      const freeText = document.getElementById('dcFreeText').value.trim() || title;
+      if (!project && !level1 && !level2 && !level3) return null;
+      return { project, level1, level2, level3, freeText };
+    }
+
+    let dcPreviewTimer = null;
+    function scheduleDocControlPreview() {
+      clearTimeout(dcPreviewTimer);
+      dcPreviewTimer = setTimeout(previewVisibleDocControlName, 250);
+    }
+
+    async function previewVisibleDocControlName() {
+      const ready = cardData.find(c => c.status === 'ready');
+      const status = document.getElementById('dcStatus');
+      if (!ready) {
+        status.textContent = '';
+        status.className = 'doccontrol-status';
+        return;
+      }
+      const doccontrol = collectDocControl(ready.title || '');
+      if (!doccontrol || !doccontrol.project || !doccontrol.level1 || !doccontrol.level2 || !doccontrol.level3) {
+        status.textContent = 'DocControl naming waits for project and first 3 level codes.';
+        status.className = 'doccontrol-status';
+        return;
+      }
+      try {
+        const res = await fetch('/api/doccontrol/preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: ready.url,
+            title: ready.title || '',
+            format: currentFormat,
+            doccontrol,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || 'Preview failed');
+        status.textContent = data.preview?.fileName ? `Next: ${data.preview.fileName}` : '';
+        status.className = 'doccontrol-status ready';
+      } catch (err) {
+        status.textContent = `DocControl: ${friendlyError(err.message || 'Preview failed')}`;
+        status.className = 'doccontrol-status error';
+      }
+    }
 
     function setFormat(btn) {
       document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentFormat = btn.dataset.format;
+      scheduleDocControlPreview();
     }
 
     function parseUrls(text) {
@@ -489,6 +620,7 @@
               formats: data.formats || [],
               selectedFormatId: data.formats?.[0]?.id || null,
             };
+            scheduleDocControlPreview();
           }
         } catch (err) {
           cardData[idx] = { ...cardData[idx], status: 'info-error', error: err.message };
@@ -572,8 +704,9 @@
         actionHtml = `<span class="card-status downloading"><span class="spin"></span> Downloading...</span>`;
       } else if (c.status === 'done') {
         const xerahsHtml = renderXerahsStatus(c.xerahs);
+        const doccontrolHtml = renderDocControlStatus(c.doccontrol);
         actionHtml = `<button class="card-dl-btn done" onclick="saveCard(${idx})">Save</button>
-          <span class="card-status done">${esc(c.filename || '')}</span>${xerahsHtml}`;
+          <span class="card-status done">${esc(c.filename || '')}</span>${doccontrolHtml}${xerahsHtml}`;
       } else if (c.status === 'error') {
         actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Retry</button>
           <span class="card-status error">${esc(friendlyError(c.error || 'Download failed'))}</span>`;
@@ -594,6 +727,13 @@
       if (xerahs.url) return ` <span class="card-status done xerahs">${esc(xerahs.url)}</span>`;
       if (xerahs.error) return ` <span class="card-status error xerahs">XerahS: ${esc(friendlyError(xerahs.error))}</span>`;
       if (xerahs.copied_path) return ` <span class="card-status done xerahs">XerahS copied</span>`;
+      return '';
+    }
+
+    function renderDocControlStatus(doccontrol) {
+      if (!doccontrol || !doccontrol.enabled) return '';
+      if (doccontrol.document?.id) return ` <span class="card-status done">DocControl #${esc(String(doccontrol.document.id))}</span>`;
+      if (doccontrol.status) return ` <span class="card-status">${esc(doccontrol.status)}</span>`;
       return '';
     }
 
@@ -628,6 +768,7 @@
             format: currentFormat,
             format_id: c.selectedFormatId,
             title: c.title || '',
+            doccontrol: collectDocControl(c.title || ''),
           }),
         });
         const data = await res.json();
@@ -656,6 +797,7 @@
             clearInterval(iv);
             c.status = 'done';
             c.filename = data.filename;
+            c.doccontrol = data.doccontrol;
             c.xerahs = data.xerahs;
             renderCard(idx);
             saveCard(idx);
@@ -695,6 +837,8 @@
 
       if (btn) { btn.disabled = false; btn.textContent = 'Download All'; }
     }
+
+    loadDocControlFields();
   </script>
 </body>
 </html>

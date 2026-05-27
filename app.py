@@ -159,7 +159,7 @@ def requested_doccontrol(job):
 def doccontrol_payload(job, ext):
     settings = doccontrol_settings()
     request_data = requested_doccontrol(job)
-    enabled = settings["enabled"] or bool(request_data)
+    enabled = settings["enabled"] and bool(request_data)
     if not enabled:
         return None, settings
 
